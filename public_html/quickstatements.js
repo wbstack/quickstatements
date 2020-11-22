@@ -55,13 +55,54 @@ var QuickStatements = {
 		}
 		
 		me.tt = new ToolTranslation ( { tool:'quickstatements' , language:me.lang() , fallback:'en' , callback : function () { fin() } } ) ;
-		
-		$.get ( 'config.json' , function ( d ) {
-			me.config = d ;
-			me.sites = d.sites ;
-			me.setSite ( me.config.site ) ;
-			fin() ;
-		} ) ;
+
+        // XXX WBSTACK: this is maintained in quickstatements.js AND vue.js
+
+        // WBSTACK load JS generated config based on the URL..
+        if (window.location.pathname.substring(0, 22) == '/tools/quickstatements') {
+            me.config = {
+                site: "wikibase",
+                sites: {
+                    wikibase: {
+                        api: window.location.protocol + '//' + window.location.host + '/w/api.php',
+                        pageBase: window.location.protocol + '//' + window.location.host + '/wiki/',
+                        types: {
+                            P: {type: "property", ns: 122, ns_prefix: "Property:"},
+                            Q: {type: "item", ns: 120, ns_prefix: "Item:"}
+                        }
+                    }
+                }
+            };
+        }
+
+		// WBSTACK dev generated config..
+        if(window.location.host.substring(window.location.host.length-14) == 'localhost:8086'){
+            me.config = {
+                site: "wikibase",
+                sites: {
+                    wikibase: {
+                        api: window.location.protocol + '//' + window.location.host.substring(0,window.location.host.length-5) + ':8083/w/api.php',
+                        pageBase: window.location.protocol + '//' + window.location.host.substring(0,window.location.host.length-5) + ':8083/wiki/',
+                        types: {
+                            P: {type: "property", ns: 122, ns_prefix: "Property:"},
+                            Q: {type: "item", ns: 120, ns_prefix: "Item:"}
+                        }
+                    }
+                }
+            };
+        }
+
+        // WBSTACK set other stuff
+        me.sites = me.config.sites
+        me.setSite("wikibase")
+
+		// WBSTACK Commented out old config loading
+		// $.get ( 'config.json' , function ( d ) {
+		// 	me.config = d ;
+		// 	me.sites = d.sites ;
+		// 	me.setSite ( me.config.site ) ;
+		// 	fin() ;
+		// } ) ;
 
 		me.oauth = { is_logged_in:false } ;
 		$.post ( me.api , { action:'is_logged_in' }, 'json' )

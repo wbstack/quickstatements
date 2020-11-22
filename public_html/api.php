@@ -1,7 +1,16 @@
 <?PHP
 
-error_reporting(E_ERROR|E_CORE_ERROR|E_ALL|E_COMPILE_ERROR); // 
-ini_set('display_errors', 'On');
+error_reporting(E_ERROR|E_CORE_ERROR|E_ALL|E_COMPILE_ERROR); //
+//ini_set('display_errors', 'On');
+
+// Session INI settings START
+if(getenv('PHP_SESSION_SAVE_HANDLER')) {
+    ini_set( 'session.save_handler', getenv('PHP_SESSION_SAVE_HANDLER') );
+}
+if(getenv('PHP_SESSION_SAVE_PATH')) {
+    ini_set( 'session.save_path', getenv('PHP_SESSION_SAVE_PATH') );
+}
+// Session INI settings END
 
 if ( !isset($_REQUEST['openpage']) ) {
 	header('Content-type: application/json; charset=UTF-8');
@@ -13,7 +22,7 @@ require_once ( 'quickstatements.php' ) ;
 function fin ( $status = '' ) {
 	global $out ;
 	if ( $status != '' ) $out['status'] = $status ;
-	print json_encode ( $out ) ; // , JSON_PRETTY_PRINT 
+	print json_encode ( $out ) ; // , JSON_PRETTY_PRINT
 	exit ( 0 ) ;
 }
 
@@ -125,11 +134,11 @@ if ( $action == 'import' ) {
 } else if ( $action == 'get_batches_info' ) {
 
 	$out['debug'] = $_REQUEST ;
-	
+
 	$user = get_request ( 'user' , '' ) ;
 	$limit = get_request ( 'limit' , '20' ) * 1 ;
 	$offset = get_request ( 'offset' , '0' ) * 1 ;
-	
+
 	$db = $qs->getDB() ;
 	$sql = "SELECT DISTINCT batch.id AS id FROM batch" ;
 	if ( $user != '' ) $sql .= ",{$qs->auth_db}.user" ;
@@ -205,11 +214,11 @@ if ( $action == 'import' ) {
 } else if ( $action == 'start_batch' or $action == 'stop_batch' ) {
 
 	$batch_id = get_request ( 'batch' , 0 ) * 1 ;
-	
+
 	$res = false ;
 	if ( $action == 'start_batch' ) $res = $qs->userChangeBatchStatus ( $batch_id , 'INIT' ) ;
 	if ( $action == 'stop_batch' )  $res = $qs->userChangeBatchStatus ( $batch_id , 'STOP' ) ;
-	
+
 	if ( !$res ) {
 		$out['status'] = $qs->last_error_message ;
 	}

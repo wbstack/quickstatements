@@ -23,10 +23,49 @@ $(document).ready ( function () {
                 'vue_components/user-page.html',
                 ] ) ,
             new Promise(function(resolve, reject) {
-                $.get ( './config.json' , function (d) {
-                    config = d ;
-                    resolve() ;
-                } , 'json' ) ;
+
+                // XXX WBSTACK: this is maintained in quickstatements.js AND vue.js
+
+                // WBSTACK load JS generated config based on the URL..
+                if (window.location.pathname.substring(0, 22) == '/tools/quickstatements') {
+                    config = {
+                        site: "wikibase",
+                        sites: {
+                            wikibase: {
+                                api: window.location.protocol + '//' + window.location.host + '/w/api.php',
+                                pageBase: window.location.protocol + '//' + window.location.host + '/wiki/',
+                                types: {
+                                    P: {type: "property", ns: 122, ns_prefix: "Property:"},
+                                    Q: {type: "item", ns: 120, ns_prefix: "Item:"}
+                                }
+                            }
+                        }
+                    };
+                }
+
+                // WBSTACK dev generated config..
+                if(window.location.host.substring(window.location.host.length-14) == 'localhost:8086'){
+                    config = {
+                        site: "wikibase",
+                        sites: {
+                            wikibase: {
+                                api: window.location.protocol + '//' + window.location.host.substring(0,window.location.host.length-5) + ':8083/w/api.php',
+                                pageBase: window.location.protocol + '//' + window.location.host.substring(0,window.location.host.length-5) + ':8083/wiki/',
+                                types: {
+                                    P: {type: "property", ns: 122, ns_prefix: "Property:"},
+                                    Q: {type: "item", ns: 120, ns_prefix: "Item:"}
+                                }
+                            }
+                        }
+                    };
+                }
+
+                resolve() ;
+
+                // $.get ( './config.json' , function (d) {
+                //     config = d ;
+                //     resolve() ;
+                // } , 'json' ) ;
             } )
     ] ) .then ( () => {
         wd_link_base = config.sites[config.site].pageBase ;
@@ -50,4 +89,3 @@ $(document).ready ( function () {
         app = new Vue ( { router } ) .$mount('#app') ;
     } ) ;
 } ) ;
-
