@@ -1,5 +1,17 @@
 {
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/wbstack/magnustools.git"
+        }
+    ],
     "require": {
-        "addwiki/mediawiki-api": "~0.7.0"
+        "addwiki/mediawiki-api": "~0.7.0",
+        "wbstack/magnustools": "dev-wbstack"
+    },
+    "scripts": {
+        "post-update-cmd": [
+            "cp -r vendor/wbstack/magnustools/public_html/php public_html/php"
+        ]
     }
 }
