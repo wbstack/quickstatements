@@ -2,7 +2,7 @@ FROM composer:1.10 as composer
 
 WORKDIR /installing
 COPY ./ /installing
-RUN composer install --no-dev --no-progress --no-autoloader && rm -rf vendor
+RUN composer install --no-dev --no-progress --no-autoloader && rm -rf vendor/wbstack/magnustools
 
 
 FROM php:7.2-apache
@@ -22,8 +22,8 @@ COPY docker/php.ini /usr/local/etc/php/conf.d/php.ini
 
 RUN install -d -owww-data /var/log/quickstatements
 
-COPY --from=composer /installing/public_html /var/www/html/quickstatements
-RUN cp -r /var/www/html/quickstatements/php /var/www/html/magnustools/public_html/php
+COPY --from=composer /installing /var/www/html/quickstatements
+COPY --from=composer /installing/public_html/php /var/www/html/magnustools/public_html/php
 
 ENTRYPOINT ["/bin/bash"]
 CMD ["/entrypoint.sh"]

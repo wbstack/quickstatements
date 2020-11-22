@@ -1,4 +1,6 @@
 {
+    "name": "wbstack/quickstatements",
+    "type": "project",
     "repositories": [
         {
             "type": "vcs",
@@ -10,6 +12,9 @@
         "wbstack/magnustools": "dev-wbstack"
     },
     "scripts": {
+        "post-install-cmd": [
+            "cp -r vendor/wbstack/magnustools/public_html/php public_html/php"
+        ],
         "post-update-cmd": [
             "cp -r vendor/wbstack/magnustools/public_html/php public_html/php"
         ]
