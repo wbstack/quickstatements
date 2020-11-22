@@ -2,7 +2,7 @@ FROM composer:1.10 as composer
 
 WORKDIR /installing
 COPY ./ /installing
-RUN composer install --no-dev --no-progress --no-autoloader && rm -rf vendor/wbstack/magnustools
+RUN composer install --no-dev --no-progress && rm -rf vendor/wbstack/magnustools
 
 
 FROM php:7.2-apache
