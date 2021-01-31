@@ -1,5 +1,9 @@
 # quickstatements
 
+## January 2021
+
+- 1.3 - Update from upstream
+
 ## November 2020
 
 - 1.2 - With modifications... (oops)
