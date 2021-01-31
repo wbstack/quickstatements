@@ -24,6 +24,7 @@ COPY docker/php.ini /usr/local/etc/php/conf.d/php.ini
 RUN install -d -owww-data /var/log/quickstatements
 
 COPY --from=composer /installing /var/www/html/quickstatements
+COPY --from=composer /installing/classes /var/www/html/magnustools/classes
 COPY --from=composer /installing/public_html/php /var/www/html/magnustools/public_html/php
 
 ENTRYPOINT ["/bin/bash"]
