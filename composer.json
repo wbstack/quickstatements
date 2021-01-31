@@ -13,10 +13,12 @@
     },
     "scripts": {
         "post-install-cmd": [
-            "cp -r vendor/wbstack/magnustools/public_html/php public_html"
+            "cp -r vendor/wbstack/magnustools/public_html/php public_html",
+            "cp -r vendor/wbstack/magnustools/classes ."
         ],
         "post-update-cmd": [
-            "cp -r vendor/wbstack/magnustools/public_html/php public_html"
+            "cp -r vendor/wbstack/magnustools/public_html/php public_html",
+            "cp -r vendor/wbstack/magnustools/classes ."
         ]
     }
 }
