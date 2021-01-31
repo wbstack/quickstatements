@@ -56,7 +56,9 @@ class QuickStatements {
 	public $retry_on_database_lock = false ;
 	public $use_user_oauth_for_batch_edits = true ;
 	public $auth_db = '' ;
-
+	public $debugging = false ;
+	public $maxlag = 5 ;
+	
 	protected $actions_v1 = array ( 'L'=>'label' , 'D'=>'description' , 'A'=>'alias' , 'S'=>'sitelink' ) ;
 	protected $is_batch_run = false ;
 	protected $user_name = '' ;
@@ -232,7 +234,7 @@ class QuickStatements {
 	}
 
 	public function getToolBase () {
-	       return $this->getSite()->toolBase ;
+	       return rtrim($this->getSite()->toolBase, '/') . '/' ;
 	}
 
 	public function isUserBlocked ( $username ) {
@@ -376,6 +378,35 @@ class QuickStatements {
 		while ( $o = $result->fetch_object() ) return $o->id*1 ;
 	}
 
+	public function fillOA ( $user_id ) {
+		$user_id *= 1 ;
+		if ( !isset($user_id) or $user_id == 0 ) return false ; # Not a user
+		$oa = $this->getOA() ;
+		if ( isset($oa->gTokenKey) and $oa->gTokenKey!='' and isset($oa->gTokenSecret) and $oa->gTokenSecret!='' ) return true ; # Already set
+
+		$db = $this->getDB() ;
+		$sql = "SELECT id FROM batch WHERE `user`={$user_id} ORDER BY id DESC LIMIT 1" ;
+		if(!$result = $db->query($sql)) return false ;
+		$last_batch_id = 0 ;
+		while ( $o = $result->fetch_object() ) $last_batch_id = $o->id ;
+		if ( $last_batch_id == 0 ) return false ; # No batch
+
+		$db2 = openToolDB ( 'quickstatements_auth' ) ;
+		$db2->set_charset("utf8") ;
+		$sql = "SELECT * FROM batch_oauth WHERE batch_id={$last_batch_id}" ;
+		if(!$result = $db2->query($sql)) return false ;
+		$j = '' ;
+		while ( $o = $result->fetch_object() ) $j = $o->serialized_json ;
+		if ( $j == '' ) return false ; # No OAuth information for the batch
+		$j = json_decode($j) ;
+
+		if ( !isset($j->gTokenKey) or !isset($j->gTokenSecret) ) return false ; # No info in JSON
+		$oa->gTokenKey = $j->gTokenKey ;
+		$oa->gTokenSecret = $j->gTokenSecret ;
+
+		return true ;
+	}
+	
 	public function generateToken ( $user_name , $force_replace = false ) {
 		$user_name = trim ( str_replace ( '_' , ' ' , $user_name ) ) ;
 
@@ -549,9 +580,19 @@ class QuickStatements {
 		$i = $this->wd->getItem ( $q ) ;
 		$claims = $i->getClaims ( $command->property ) ;
 		foreach ( $claims AS $c ) {
-			if ( !isset($c->mainsnak) or !isset($c->mainsnak->datavalue) ) continue ;
-			if ( !isset($command->datavalue) ) continue ;
-			if ( $this->compareDatavalue ( $c->mainsnak->datavalue , $command->datavalue ) ) return $c->id ;
+			// when snaktype is somevalue/novalue, $c->mainsnak->datavalue doesn't exist (since the value is unknown or not existing)
+			if ( $c->mainsnak->snaktype === "somevalue" || $c->mainsnak->snaktype === "novalue" ) {
+
+				$lackingValueType = $c->mainsnak->snaktype ;
+				if ( $lackingValueType === $command->datavalue->type ) return $c->id ;
+
+			} else {
+
+				if ( !isset($c->mainsnak) or !isset($c->mainsnak->datavalue) ) continue ;
+				if ( !isset($command->datavalue) ) continue ;
+				if ( $this->compareDatavalue ( $c->mainsnak->datavalue , $command->datavalue ) ) return $c->id ;
+
+			}
 		}
 	}
 
@@ -718,8 +759,9 @@ class QuickStatements {
 
 	}
 
-	public function runBotAction ( $params_orig , $attempts_left = 3 ) {
+	public function runBotAction ( $params_orig , $attempts_left = 1000 , $lag = 0 ) {
 		if ( $attempts_left <= 0 ) return false ;
+		if ( $lag == 0 ) $lag = $this->maxlag ;
 		$params = array() ;
 		foreach ( $params_orig AS $k => $v ) $params[$k] = $v ; // Copy to array, and for safekeeping original
 		$this->last_result = (object) array() ;
@@ -728,7 +770,8 @@ class QuickStatements {
 		unset ( $params['action'] ) ;
 
 		$params['bot'] = 1 ;
-		$params['maxlag'] = 5 ;
+		$params['maxlag'] = intval($lag) ;
+		if ( $this->debugging ) print "\nTRYING WITH MAXLAG {$lag}\n" ;
 
 		$api = $this->getBotAPI() ;
 		$params['token'] = $api->getToken() ;
@@ -737,11 +780,17 @@ class QuickStatements {
 			$x = $api->postRequest( new \Mediawiki\Api\SimpleRequest( $action, $params ) );
 			if ( isset($x) ) {
 				$ret = json_decode ( json_encode ( $x ) ) ; // Casting to object
+				if ( $this->debugging ) {
+					print "\n=== RET\n" ;
+					print_r ( $ret ) ;
+				}
+				if ( isset($ret->error) and isset($ret->error->code) ) {
+					#print "ERROR: {$ret->error->code}\n" ;
+				}
 				if ( isset($ret->error) and isset($ret->error->code) and $ret->error->code == 'maxlag' ) {
-					$lag = 5 ;
-					if ( isset($ret->error->lag) ) $lag = $ret->error->lag*1 + $maxlag ;
+					if ( isset($ret->error->lag) ) $lag = $ret->error->lag*1 + $lag ;
 					sleep ( $lag ) ;
-					return $this->runBotAction ( $params_orig , $attempts_left-1 ) ;
+					return $this->runBotAction ( $params_orig , $attempts_left-1 , $lag ) ;
 				} else {
 					$this->last_result = $ret ;
 				}
@@ -751,11 +800,23 @@ print "\nFALSE\n" ;
 			}
 		} catch (Exception $e) {
 			$msg = $e->getMessage() ;
+			if ( $this->debugging ) print "\n=== EXCEPTION : {$msg}\n" ;
 			if ( $msg == 'The save has failed.' ) {
 				sleep ( 2 ) ;
 				return $this->runBotAction ( $params_orig , $attempts_left-1 ) ;
 			}
-			$this->last_result->error = (object) array ( 'info' => $msg ) ;
+			# This should have been handled above but postRequest just throws an exception instead of returning the errror
+			if ( preg_match ( '|([0-9.]+) seconds lagged|' , $msg , $m ) ) {
+				$lag = $m[1]*1 + $lag ;
+				if ( $this->debugging ) print "SLEEPING {$lag} sec...\n" ;
+				sleep ( $lag ) ;
+				return $this->runBotAction ( $params_orig , $attempts_left-1 , $lag ) ;
+			}
+			if ( preg_match ( '|The database has been automatically locked while the slave database servers catch up to the master|' , $msg ) ) {
+				sleep ( 30 ) ;
+				return $this->runBotAction ( $params_orig , $attempts_left-1 ) ;
+			}
+			$this->last_result->error = (object) [ 'info' => $msg ] ;
 			return false ;
 		}
 		return true ;
@@ -789,6 +850,16 @@ print "\nFALSE\n" ;
 				$command->item = $result->entity->id ; // "Last item"
 			}
 		} else {
+			/*
+			if ( $this->debugging ) {
+				print "\n==== PARAMS\n" ;
+				print "API: " . $this->getAPI() . "\n" ;
+				print_r ( $params ) ;
+				print "==== RESULT\n" ;
+				print_r ( $result ) ;
+				print "====\n" ;
+			}
+			*/
 			$command->status = 'error' ;
 			if ( !isset($result) or $result === null or $result == '' ) {
 				$command->message = 'No result received for ' . json_encode($params) ;
@@ -1455,7 +1526,7 @@ exit ( 1 ) ; // Force bot restart
 		if ( preg_match ( '/^([\+\-]{0,1}\d+(\.\d+){0,1})(U(\d+)){0,1}$/' , $v , $m ) ) { // Quantity
 			$cmd['datavalue'] = array ( "type"=>"quantity" , "value"=>array(
 				"amount" => $m[1] ,
-				"unit" => isset( $m[4] ) ? "http://www.wikidata.org/entity/Q{$m[4]}" : "1"
+				"unit" => isset( $m[4] ) ? "{$this->getSite()->entityBase}Q{$m[4]}" : "1"
 			) ) ;
 			return true ;
 		}
@@ -1466,7 +1537,7 @@ exit ( 1 ) ; // Force bot restart
 				"amount" => $m[1] , // use $m[1] (string) instead of $value (float) to avoid precision problems
 				"upperBound" => $value+$error ,
 				"lowerBound" => $value-$error ,
-				"unit" => isset( $m[6] ) ? "http://www.wikidata.org/entity/Q{$m[6]}" : "1"
+				"unit" => isset( $m[6] ) ? "{$this->getSite()->entityBase}Q{$m[6]}" : "1"
 			) ) ;
 			return true ;
 		}

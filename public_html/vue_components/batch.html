@@ -32,17 +32,17 @@ div.create_batch_box > div {
 					</div>
 					<div>
 						<span tt='by'></span>
-						<a :href="'https://www.wikidata.org/wiki/User:'+encodeURIComponent(meta.batch.user_name)" target='_blank' class='wikidata'>
+						<a :href="config.sites[config.site].pageBase + 'User:'+encodeURIComponent(meta.batch.user_name)" target='_blank' class='wikidata'>
 							{{meta.batch.user_name.replace(/_/g,' ')}}
 						</a>
 						[<router-link :to='"/batches/"+meta.batch.user_name' tt='batches'></router-link>]
 					</div>
 					<div v-if='(meta.commands.DONE||0)>0'>
 						<span v-if='meta.batch.id==0'>
-							<a target='_blank' class='external' :href='"https://tools.wmflabs.org/editgroups/b/QSv2T/"+encodeURIComponent(run.temp_id.replace(/\D/g,""))' tt='revert_batch'></a>
+							<a target='_blank' class='external' :href='"https://editgroups.toolforge.org/b/QSv2T/"+encodeURIComponent(run.temp_id.replace(/\D/g,""))' tt='revert_batch'></a>
 						</span>
 						<span v-else>
-							<a target='_blank' class='external' :href='"https://tools.wmflabs.org/editgroups/b/QSv2/"+meta.batch.id' tt='revert_batch'></a>
+							<a target='_blank' class='external' :href='"https://editgroups.toolforge.org/b/QSv2/"+meta.batch.id' tt='revert_batch'></a>
 						</span>
 					</div>
 					<div style='flex-grow:1'></div>
@@ -129,7 +129,7 @@ div.create_batch_box > div {
 			<div v-else>
 				You can't create a new batch, because you are
 				<span v-if='!user.is_logged_in'>not logged in</span>
-				<span v-if='!user.isAutoconfirmed()'>not autoconfirmed</span>
+				<span v-if='!user.isAutoconfirmed() || !user.isConfirmed()'>not autoconfirmed</span>
 				<span v-if='user.isBlocked()'>blocked on Wikidata</span>
 			</div>
 		</div>
@@ -183,10 +183,11 @@ let BatchPage = Vue.extend ( {
     		let pb = config.sites[me.meta.batch.site].pageBase ;
     		if ( wd_link_base == pb ) return ;
 
+			const apiUrl = config.sites[me.meta.batch.site].publicApi || config.sites[me.meta.batch.site].api ;
 			wd = new WikiData() ;
 	        wd_link_base = pb ;
 	        wd_link_wd = wd ;
-	        wd.api = config.sites[me.meta.batch.site].api + '?callback=?' ;
+	        wd.api = apiUrl + '?callback=?' ;
     	} ,
     	loadTempFile : function ( tmpfile ) {
     		var me = this ;
@@ -210,6 +211,8 @@ let BatchPage = Vue.extend ( {
 			$.each ( d.data.commands , function ( k ,v ) {
 				d.data.commands[k].meta = { message:'' , status:'INIT' , id:k } ;
 			} ) ;
+			//if ( typeof d.site != 'undefined' ) me.meta.batch.site = d.site ;
+			if ( typeof me.$route.query.site != 'undefined' ) me.meta.batch.site = me.$route.query.site ;
 			me.meta.batch.user_name = user.getUserName() ;
 			me.meta.batch.total_commands = d.data.commands.length ;
 			me.meta.commands = { INIT:me.meta.batch.total_commands } ;
