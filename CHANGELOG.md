@@ -1,5 +1,9 @@
 # quickstatements
 
+## June 2021
+
+- 1.3.3 - More updates from upstream
+
 ## January 2021
 
 - 1.3 - Update from upstream
