@@ -6,7 +6,7 @@ COPY ./ /installing
 RUN composer install --no-dev --no-progress && rm -rf vendor/wbstack/magnustools
 
 
-FROM php:7.2-apache
+FROM php:8.0.11-apache
 
 LABEL org.opencontainers.image.source="https://github.com/wbstack/quickstatements"
 
