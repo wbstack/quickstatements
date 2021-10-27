@@ -2,7 +2,10 @@
 
 ## October 2021
 
-- 1.3.4 - Updates to magnustools - "internal" requests now goes through platform-nginx with host headers set rather than leaving the cluster
+- 1.3.4
+  - Updates to magnustools - "internal" requests now goes through platform-nginx with host headers set rather than leaving the cluster.
+  - PHP session handling now supports using redis.
+  - Some dependabot changes related to Github Actions.
 
 ## June 2021
 
