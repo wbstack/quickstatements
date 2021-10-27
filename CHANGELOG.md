@@ -1,5 +1,9 @@
 # quickstatements
 
+## October 2021
+
+- 1.3.4 - Updates to magnustools - "internal" requests now goes through platform-nginx with host headers set rather than leaving the cluster
+
 ## June 2021
 
 - 1.3.3 - More updates from upstream
