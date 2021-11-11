@@ -779,13 +779,13 @@
             "version": "dev-main",
             "source": {
                 "type": "git",
-                "url": "https://github.com/wbstack/magnustools.git",
-                "reference": "a16e54b19e2190adea7e1efaa3d9caafc40f9663"
+                "url": "https://github.com/wbstack/magnustools.git", 
+                "reference": "5199914627c7c356c49bbf6552f100d6890b18ae"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/wbstack/magnustools/zipball/a16e54b19e2190adea7e1efaa3d9caafc40f9663",
-                "reference": "a16e54b19e2190adea7e1efaa3d9caafc40f9663",
+                "url": "https://api.github.com/repos/wbstack/magnustools/zipball/5199914627c7c356c49bbf6552f100d6890b18ae",
+                "reference": "5199914627c7c356c49bbf6552f100d6890b18ae",
                 "shasum": ""
             },
             "require": {
