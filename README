@@ -2,3 +2,24 @@ Using addwiki:
 https://github.com/addwiki/mediawiki-api
 
 Copy public_html/config.json.template to config.json and modify for your needs
+
+## NPM Dependencies
+
+Currently the external dependencies are managed by npm, they are installed during the building of the Dockerfile by running the following command
+
+```
+npm ci --only=production
+```
+
+and then moving the installed libraries to the public_html/ folder.
+
+## TODO
+### Add some kind of offline version of https://bitbucket.org/magnusmanske/tooltranslate.git
+
+This could potentially be some kind of homebrew thing that looks at the toolinfo.json and pulls the all the translations when the Dockerfile builds and puts these in the `public_html/` folder
+
+```
+https://tools-static.wmflabs.org/tooltranslate/data/quickstatements/toolinfo.json
+```
+
+This would also require a rewrite of https://tools-static.wmflabs.org/tooltranslate/tt.js
