@@ -73,7 +73,7 @@ class QuickStatements {
 		// START WBSTACK CUSTOM
         WbstackMagnusOauth::setOauthDetails(
             'Quickstatements',
-            '1.0.3',
+            '1.0.4',
             [
                 'createeditmovepage',
                 'editpage',
