@@ -1,5 +1,9 @@
 # quickstatements
 
+## Feburary 2022
+- 1.3.5
+  - Update OAuth consumer version
+
 ## October 2021
 
 - 1.3.4
