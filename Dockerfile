@@ -10,8 +10,13 @@ FROM php:7.2-apache
 
 LABEL org.opencontainers.image.source="https://github.com/wbstack/quickstatements"
 
-# For session storage
-RUN pecl install redis-4.0.1 && docker-php-ext-enable redis
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends gettext-base=0.19.8.1-9 jq=1.5+dfsg-2+b1 libicu-dev=63.1-6+deb10u3 && \
+    rm -rf /var/lib/apt/lists/* && \
+    docker-php-ext-configure intl && \
+    docker-php-ext-install intl && \
+    pecl install redis-4.0.1 && \
+    docker-php-ext-enable redis
 
 ENV APACHE_DOCUMENT_ROOT /var/www/html/quickstatements/public_html
 #TODO do 2 tuns in 1 layer..
