@@ -1,5 +1,13 @@
 # quickstatements
 
+## October 2024
+- 1.3.7
+  - Update `magnustools` to correctly use https concept URI
+
+## June 2024
+- 1.3.6
+  - Add `intl` php extension
+
 ## Feburary 2022
 - 1.3.5
   - Update OAuth consumer version
