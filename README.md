@@ -10,6 +10,8 @@ To update this repository you need to pull the updates from the upstream and ens
 
 If you go through this process please also update here to document it
 
+# Changelog
+
 Using addwiki:
 https://github.com/addwiki/mediawiki-api
 
