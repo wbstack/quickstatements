@@ -1,4 +1,4 @@
-FROM composer@sha256:d374b2e1f715621e9d9929575d6b35b11cf4a6dc237d4a08f2e6d1611f534675 as composer
+FROM composer@sha256:f8d264930b478333879559c5566f3c46f23935704a10977567cd6a24e1726adf as composer
 # composer is pinned at a PHP 7 version
 
 WORKDIR /installing
