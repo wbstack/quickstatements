@@ -1,21 +1,20 @@
-FROM composer@sha256:d374b2e1f715621e9d9929575d6b35b11cf4a6dc237d4a08f2e6d1611f534675 as composer
-# composer is pinned at a PHP 7 version
+FROM composer:2.8 as composer
 
 WORKDIR /installing
 COPY ./ /installing
 RUN composer install --no-dev --no-progress && rm -rf vendor/wbstack/magnustools
 
 
-FROM php:7.2-apache
+FROM php:8.1-apache
 
 LABEL org.opencontainers.image.source="https://github.com/wbstack/quickstatements"
 
 RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends gettext-base=0.19.8.1-9 jq=1.5+dfsg-2+b1 libicu-dev=63.1-6+deb10u3 && \
+    DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends libasprintf0v5 jq libicu-dev icu-devtools && \
     rm -rf /var/lib/apt/lists/* && \
     docker-php-ext-configure intl && \
     docker-php-ext-install intl && \
-    pecl install redis-4.0.1 && \
+    pecl install redis && \
     docker-php-ext-enable redis
 
 ENV APACHE_DOCUMENT_ROOT /var/www/html/quickstatements/public_html
