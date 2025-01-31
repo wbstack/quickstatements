@@ -1134,7 +1134,7 @@ exit ( 1 ) ; // Force bot restart
 	}
 
 	public function runSingleCommand ( $command ) {
-		if ( $this->sleep != 0 ) sleep ( $this->sleep ) ;
+		if ( $this->sleep != 0 ) usleep ( $this->sleep * 1000 ) ;
 		if ( !isset($command) ) return $this->commandError ( $command , "Empty command" ) ;
 		$command->status = 'working' ;
 		if ( isset($command->error) ) unset ( $command->error ) ;
