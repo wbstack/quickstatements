@@ -1,7 +1,7 @@
 <?PHP
 
-error_reporting(E_ERROR|E_CORE_ERROR|E_ALL|E_COMPILE_ERROR); //
-//ini_set('display_errors', 'On');
+error_reporting(E_ALL ^ E_DEPRECATED); //
+ini_set('display_errors', 'On');
 
 // Session INI settings START
 if(getenv('PHP_SESSION_SAVE_HANDLER')) {
@@ -236,7 +236,7 @@ if ( $action == 'import' ) {
 } else if ( $action == 'run_single_command' ) {
 
 	validate_origin();
-	$site = strtolower ( trim ( get_request ( 'site' , '' ) ) ) ;
+	$site = get_request ( 'site' , '' ) ;
 	if ( !$qs->setSite ( $site ) ) {
 		$out['status'] = "Error while setting site '{$site}': " . $qs->last_error_message ;
 	} else {
