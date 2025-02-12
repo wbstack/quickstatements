@@ -58,15 +58,16 @@ class QuickStatements {
 	public $auth_db = '' ;
 	public $debugging = false ;
 	public $maxlag = 5 ;
+	public $verbose = false ;
+	public $logging = true ;
 	
 	protected $actions_v1 = array ( 'L'=>'label' , 'D'=>'description' , 'A'=>'alias' , 'S'=>'sitelink' ) ;
 	protected $is_batch_run = false ;
 	protected $user_name = '' ;
 	protected $user_id = 0 ;
-	protected $user_groups = array() ;
+	protected $user_groups = [] ;
 	protected $db ;
-	protected $logging = true ;
-
+	
 	public function __construct () {
 		global $wikidata_api_url ;
 
@@ -189,7 +190,7 @@ class QuickStatements {
 		if ( $this->use_command_compression ) $commands = $this->compressCommands ( $commands ) ;
 		$db = $this->getDB() ;
 		$ts = $this->getCurrentTimestamp() ;
-		$sql = "INSERT INTO batch (name,user,site,ts_created,ts_last_change,status) VALUES ('".$db->real_escape_string($name)."',$user_id,'".$db->real_escape_string($site)."','$ts','$ts','LOADING')" ;
+		$sql = "INSERT INTO batch (name,user,site,ts_created,ts_last_change,status,message) VALUES ('".$db->real_escape_string($name)."',$user_id,'".$db->real_escape_string($site)."','$ts','$ts','LOADING','')" ;
 		if(!$result = $db->query($sql)) return $this->setErrorMessage ( 'There was an error running the query [' . $db->error . ']'."\n$sql" ) ;
 		$batch_id = $db->insert_id ;
 		$serialized = serialize($this->getOA()) ;
@@ -205,7 +206,7 @@ class QuickStatements {
 			if ( trim($cs) == '' ) continue ; // Paranoia
 			$status = 'INIT' ;
 			if ( isset($c->status) and trim($c->status) != '' ) $status = strtoupper(trim($c->status)) ;
-			$sql = "INSERT INTO command (batch_id,num,json,status,ts_change) VALUES ($batch_id,$k,'".$db->real_escape_string($cs)."','".$db->real_escape_string($status)."','$ts')" ;
+			$sql = "INSERT INTO command (batch_id,num,json,status,ts_change,message) VALUES ($batch_id,$k,'".$db->real_escape_string($cs)."','".$db->real_escape_string($status)."','$ts','')" ;
 			if(!$result = $db->query($sql)) return $this->setErrorMessage ( 'There was an error running the query [' . $db->error . ']'."\n$sql" ) ;
 		}
 		$sql = "UPDATE batch SET status='INIT' WHERE id=$batch_id" ;
@@ -573,27 +574,30 @@ class QuickStatements {
 	protected function getStatementID ( $command ) {
 		if ( !$this->isProperty ( $command->property ) ) return ;
 		if ( !isset($command->datavalue) ) return ;
+		if ( isset($command->new_statement) and $command->new_statement ) return ;
 		$q = $command->item ;
 
 		$this->wd->loadItem ( $q ) ;
 		if ( !$this->wd->hasItem($q) ) return ;
 		$i = $this->wd->getItem ( $q ) ;
 		$claims = $i->getClaims ( $command->property ) ;
+		$last_claim_id = null ;
 		foreach ( $claims AS $c ) {
 			// when snaktype is somevalue/novalue, $c->mainsnak->datavalue doesn't exist (since the value is unknown or not existing)
 			if ( $c->mainsnak->snaktype === "somevalue" || $c->mainsnak->snaktype === "novalue" ) {
 
 				$lackingValueType = $c->mainsnak->snaktype ;
-				if ( $lackingValueType === $command->datavalue->type ) return $c->id ;
+				if ( $lackingValueType === $command->datavalue->type ) $last_claim_id = $c->id ; // return $c->id ;
 
 			} else {
 
 				if ( !isset($c->mainsnak) or !isset($c->mainsnak->datavalue) ) continue ;
 				if ( !isset($command->datavalue) ) continue ;
-				if ( $this->compareDatavalue ( $c->mainsnak->datavalue , $command->datavalue ) ) return $c->id ;
+				if ( $this->compareDatavalue ( $c->mainsnak->datavalue , $command->datavalue ) ) $last_claim_id = $c->id ; // return $c->id ;
 
 			}
 		}
+		return $last_claim_id ;
 	}
 
 	// Return true if both datavalues are the same (for any given value of same...), or false otherwise
@@ -657,7 +661,8 @@ class QuickStatements {
 						'mainsnak' => array (
 							'snaktype' => 'value' ,
 							'property' => $commands[$pos]['property'] ,
-							'datavalue' => $commands[$pos]['datavalue']
+							'datavalue' => $commands[$pos]['datavalue'],
+							'new_statement' => $commands[$pos]['new_statement']
 						) ,
 						'type' => 'statement' ,
 						'rank' => 'normal'
@@ -675,25 +680,32 @@ class QuickStatements {
 						) {
 
 						if ( $commands[$pos2]['what'] == 'sources' ) {
-							if ( !isset($claim['references']) ) $claim['references'] = array(  ) ;
-
-							$refs = array('snaks'=>array()) ;
+							if ( !isset($claim['references']) ) $claim['references'] = [] ;
+							
+							$refs = ['snaks'=>[]] ;
 							foreach ( $commands[$pos2]['sources'] AS $s ) {
-								$source = array (
+								if ( isset($s['new_source_group']) ) {
+									# Create new reference group
+									if ( count($refs['snaks'])>0 ) {
+										$claim['references'][] = $refs ;
+										$refs = ['snaks'=>[]] ;
+									}
+								}
+								$source = [
 									'snaktype' => 'value' ,
 									'property' => $s['prop'] ,
 									'datavalue' => $s['value']
-								) ;
+								] ;
 								$refs['snaks'][$s['prop']][] = $source ;
 							}
 
 							$claim['references'][] = $refs ;
 						} else if ( $commands[$pos2]['what'] == 'qualifier' ) {
-							$qual = array (
+							$qual = [
 								'property' => $commands[$pos2]['qualifier']['prop'] ,
 								'snaktype' => 'value' ,
 								'datavalue' => $commands[$pos2]['qualifier']['value']
-							) ;
+							] ;
 							$claim['qualifiers'][] = $qual ;
 						}
 
@@ -758,8 +770,8 @@ class QuickStatements {
 		return $api ;
 
 	}
-
-	public function runBotAction ( $params_orig , $attempts_left = 1000 , $lag = 0 ) {
+	
+	public function runBotAction ( $params_orig , $attempts_left = 10 , $lag = 0 ) {
 		if ( $attempts_left <= 0 ) return false ;
 		if ( $lag == 0 ) $lag = $this->maxlag ;
 		$params = array() ;
@@ -906,20 +918,11 @@ exit ( 1 ) ; // Force bot restart
 		}
 		return 'value' ;
 	}
-
-	protected function getPrefixedID ( $q ) {
-		$q = trim ( strtoupper ( $q ) ) ;
-
-		foreach ( $this->getSite()->types AS $char => $data ) {
-			if ( !isset($data->ns_prefix) or $data->ns_prefix == '' ) continue ;
-			if ( preg_match ( '/^'.$char.'\d+$/' , $q ) ) return $data->ns_prefix.$q ;
-		}
-		return $q ;
-	}
-
+	
 	protected function commandAddStatement ( $command , $i , $statement_id ) {
 		// Paranoia
 		if ( isset($statement_id) ) return $this->commandDone ( $command , "Statement already exists as $statement_id" ) ;
+		if ( !isset($command->datavalue->value) ) return $this->commandError ( $command, "Incomplete command parameters" ) ;
 
 		// Execute!
 		$action = array (
@@ -928,9 +931,11 @@ exit ( 1 ) ; // Force bot restart
 			'snaktype' => $this->getSnakType ( $command->datavalue ) ,
 			'property' => $command->property ,
 			'value' => json_encode ( $command->datavalue->value ) ,
-			'summary' => '' ,
-			'baserevid' => $i->j->lastrevid
+			'summary' => ''
 		) ;
+		if ( isset($i->j) and isset($i->j->lastrevid) ) {
+			$action['baserevid'] = $i->j->lastrevid ;
+		}
 		if ( $action['snaktype'] != 'value' ) unset( $action['value'] );
 		$this->runAction ( $action , $command ) ;
 		if ( !$this->isBatchRun() ) $this->wd->updateItem ( $command->item ) ;
@@ -942,6 +947,7 @@ exit ( 1 ) ; // Force bot restart
 		if ( !isset($command->qualifier) ) return $this->commandError ( $command , "Incomplete command parameters" ) ;
 		if ( !isset($command->qualifier->prop) ) return $this->commandError ( $command , "Incomplete command parameters" ) ;
 		if ( !preg_match ( '/^P\d+$/' , $command->qualifier->prop ) ) return $this->commandError ( $command , "Invalid qualifier property {$command->qualifier->prop}" ) ;
+		if ( !isset($command->qualifier->value->value) ) return $this->commandError ( $command, "Incomplete command parameters" ) ;
 
 		// Execute!
 		$action = array (
@@ -968,6 +974,7 @@ exit ( 1 ) ; // Force bot restart
 		// Prep
 		$snaks = array() ;
 		foreach ( $command->sources AS $source ) {
+			if ( !isset($source->value->value) ) return $this->commandError ( $command, "Incomplete command parameters" ) ;
 			$s = array(
 				'snaktype' => $this->getSnakType ( $source->value ) ,
 				'property' => $source->prop ,
@@ -1063,7 +1070,7 @@ exit ( 1 ) ; // Force bot restart
 		// Execute!
 		$this->runAction ( array (
 			'action' => 'wbsetsitelink' ,
-			'id' => $this->getPrefixedID ( $command->item ) ,
+			'id' => $command->item ,
 			'linksite' => $command->site ,
 			'linktitle' => $command->value ,
 			'summary' => '' ,
@@ -1120,7 +1127,7 @@ exit ( 1 ) ; // Force bot restart
 		foreach ( $commands AS $command_original ) {
 			$command = $this->array2object ( $command_original ) ;
 			$command = $this->runSingleCommand ( $command ) ;
-			if ( $command->status != 'done' ) {
+			if ( $command->status != 'done' and $this->verbose ) {
 				print "<pre>" ; print_r ( $command ) ; print "</pre>" ;
 			}
 			// TODO proper error handling
@@ -1245,9 +1252,14 @@ exit ( 1 ) ; // Force bot restart
 				$cols[0] = $m[1] ;
 			}
 			$first = strtoupper(trim($cols[0])) ;
-			if ( count ( $cols ) >= 3 and ( $this->isValidItemIdentifier($first) or $first == 'LAST' ) and $this->isValidItemIdentifier($cols[1]) ) {
-				$prop = strtoupper(trim($cols[1])) ;
-				$cmd = array ( 'action'=>$action , 'item'=>$first , 'property'=>$prop , 'what'=>'statement' ) ;
+			if ( count ( $cols ) >= 3 and ( $this->isValidItemIdentifier($first) or $first == 'LAST' ) and ( $this->isValidItemIdentifier($cols[1]) or preg_match ( '/^(!P)(\d+)$/i' , $cols[1] ) ) ) {
+        			$prop = strtoupper(trim($cols[1])) ;
+	        		$is_new_statement = 0 ;
+        			if ( $prop[0] == '!') {
+	        		        $is_new_statement = 1 ;
+		        	        $prop = substr($prop, 1) ;
+        			}
+				$cmd = array ( 'action'=>$action , 'item'=>$first , 'property'=>$prop , 'what'=>'statement', 'new_statement'=>$is_new_statement ) ;
 				if ( $comment != '' ) $cmd['summary'] = $comment ;
 				$this->parseValueV1 ( $cols[2] , $cmd ) ;
 
@@ -1261,20 +1273,22 @@ exit ( 1 ) ; // Force bot restart
 					$key = array_shift ( $cols ) ;
 					$key = strtoupper ( trim ( $key ) ) ;
 					$value = array_shift ( $cols ) ;
-					if ( preg_match ( '/^([SP])(\d+)$/i' , $key , $m ) ) {
-						$what = $m[1] == 'S' ? 'sources' : 'qualifier' ;
+					if ( preg_match ( '/^(S|P|!S)(\d+)$/i' , $key , $m ) ) {
+						$is_new_source_group = $m[1]=='!S' ;
+						$what = in_array($m[1], ['S','!S']) ? 'sources' : 'qualifier' ;
 						$num = $m[2] ;
 
 						// Store previous one, and reset
 						if ( !$skip_add_command ) $ret['data']['commands'][] = $cmd ;
 						$skip_add_command = false ;
 						$last_command = $ret['data']['commands'][count($ret['data']['commands'])-1] ;
-
-						$cmd = array ( 'action'=>$action , 'item'=>$first , 'property'=>$prop , 'what'=>$what , 'datavalue'=>$last_command['datavalue'] ) ;
-						$dummy = array() ;
+						
+						$cmd = [ 'action'=>$action , 'item'=>$first , 'property'=>$prop , 'what'=>$what , 'datavalue'=>$last_command['datavalue'] ] ;
+						$dummy = [] ;
 						$this->parseValueV1 ( $value , $dummy ) ; // TODO transfer error message
-						$dv = array ( 'prop' => 'P'.$num , 'value' => $dummy['datavalue'] ) ;
-						if ( $what == 'sources' ) $cmd[$what] = array($dv) ;
+						$dv = [ 'prop' => 'P'.$num , 'value' => $dummy['datavalue'] ] ;
+						if ( $is_new_source_group ) $dv['new_source_group'] = 1 ;
+						if ( $what == 'sources' ) $cmd[$what] = [$dv] ;
 						else $cmd[$what] = $dv ;
 //$ret['debug'][] = array ( $what , $last_command['what'] ) ;
 						if ( $what == 'sources' and $last_command['what'] == $what ) {
@@ -1386,6 +1400,7 @@ exit ( 1 ) ; // Force bot restart
                 if ( $instruction[0] === 'P' ) {
                     $command += [
                         'what' => 'statement',
+                        'new_statement' => 0,
                         'property' => $instruction
                     ];
                     $this->parseValueV1( $value, $command );
@@ -1530,16 +1545,21 @@ exit ( 1 ) ; // Force bot restart
 			return true ;
 		}
 
-		if ( preg_match ( '/^([+-]{0,1})(\d+)-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)Z\/{0,1}(\d*)$/i' , $v , $m ) ) { // TIME
+		if ( preg_match ( '/^([+-]{0,1})(\d+)-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)Z\/{0,1}(\d*)(\/J){0,1}$/i' , $v , $m ) ) { // TIME
 			$prec = 9 ;
 			if ( $m[8] != '' ) $prec = $m[8]*1 ;
+			$is_julian = false ;
+			if ( count($m) == 10 ) {
+			    $is_julian = true ;
+			    $v = preg_replace ( '/\/J$/', '', $v ) ;
+                        }
 			$cmd['datavalue'] = array ( "type"=>"time" , "value"=>array(
 				'time' => preg_replace ( '/\/\d+$/' , '' , $v ) ,
 				'timezone' => 0 ,
 				'before' => 0 ,
 				'after' => 0 ,
 				'precision' => $prec ,
-				'calendarmodel' => 'http://www.wikidata.org/entity/Q1985727'
+				'calendarmodel' => $is_julian ? 'http://www.wikidata.org/entity/Q1985786' : 'http://www.wikidata.org/entity/Q1985727'
 			) ) ;
 			return true ;
 		}
