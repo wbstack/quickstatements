@@ -1,5 +1,9 @@
 # quickstatements
 
+## March 2025
+- 1.4.0
+  - Install extra tls CA cert if it exists
+
 ## October 2024
 - 1.3.7
   - Update `magnustools` to correctly use https concept URI
