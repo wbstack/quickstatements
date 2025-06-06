@@ -5,3 +5,12 @@ Using addwiki:
 https://github.com/addwiki/mediawiki-api
 
 Copy public_html/config.json.template to config.json and modify for your needs
+
+## Syncing this fork
+- Switch/Create a branch for the merge
+- Add local upstream remote: `git remote add upstream https://github.com/magnusmanske/quickstatements`
+- Fetch upstream: `git fetch upstream`  
+- Merge master(!) branch: `git merge upstream/master`
+- Resolve conflicts (if any)
+- Update Changelog
+
