@@ -11,10 +11,10 @@ LABEL org.opencontainers.image.source="https://github.com/wbstack/quickstatement
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends \
-        libasprintf0v5 \
-        jq \
-        libicu-dev \
-        icu-devtools && \
+        libasprintf0v5=0.23.1-2 \
+        jq=1.7.1-6 \
+        libicu-dev=76.1-4 \
+        icu-devtools=76.1-4 && \
     rm -rf /var/lib/apt/lists/* && \
     docker-php-ext-configure intl && \
     docker-php-ext-install intl && \
