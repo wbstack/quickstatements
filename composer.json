@@ -9,7 +9,7 @@
     ],
     "require": {
         "addwiki/mediawiki-api": "~2.0",
-        "wbstack/magnustools": "dev-main#e3ddd872410e3d25cec63c5d646ba8cdd9a813ae"
+        "wbstack/magnustools": "dev-de/backend-api-query#96464e6b94a8ac3bbf9cb9c2b254a0a02ad00ec6"
     },
     "scripts": {
         "post-install-cmd": [
