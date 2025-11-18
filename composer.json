@@ -9,7 +9,7 @@
     ],
     "require": {
         "addwiki/mediawiki-api": "~2.0",
-        "wbstack/magnustools": "dev-main#TBD"
+        "wbstack/magnustools": "de/refactor-routing#c85e981827f4976ace338dca325a6bc27396146a"
     },
     "scripts": {
         "post-install-cmd": [
