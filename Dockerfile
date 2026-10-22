@@ -5,7 +5,7 @@ COPY ./ /installing
 RUN composer install --no-dev --no-progress && rm -rf vendor/wbstack/magnustools
 
 
-FROM php:8.1-apache
+FROM php:8.5-apache
 
 LABEL org.opencontainers.image.source="https://github.com/wbstack/quickstatements"
 
@@ -18,7 +18,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/* && \
     docker-php-ext-configure intl && \
     docker-php-ext-install intl && \
-    pecl install redis-6.1.0 && \
+    pecl install redis-6.3.0 && \
     docker-php-ext-enable redis
 
 ENV APACHE_DOCUMENT_ROOT /var/www/html/quickstatements/public_html
